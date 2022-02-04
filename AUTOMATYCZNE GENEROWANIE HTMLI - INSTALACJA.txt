@@ -1,0 +1,9 @@
+1. WYBÓR WSPÓLNEJ TABELI DANYCH NA SERWERZE SQL I URUCHOMIENIE PROCEDUR Z PLIKÓW, Z FOLDERU "Procedures".
+2. "T_Rep_H.sql" 			- TABELA [dbo].[Report_HTMLS].
+3. "T_Rep_Param.sql" 		- TABELA [dbo].[Report_HTML_Params].
+4. "P_Find_Params.sql" 		- PROCEDURA [dbo].[HRM_02_FindParameters]
+5. "Trg_Update_Param.sql" 	- TRIGGER [dbo].[HRM_02_UpdateParamsTable].
+6. "S_Invoke_No.sql"		- SEKWENCJA [dbo].[HRM_00_InvokeNo].
+7. "SF_Prereq.sql"			- POTRZEBNE FUNKCJE SKALARNE - PREREKWIZYTY DLA GŁÓWNEJ PROCEDURY.
+8. "P_MainProc.sql"			- GŁÓWNA PROCEDURA [dbo].[HRM_00_PrepareHtmls] + PREREKWIZYTY
+9. "P_Other.sql"			- INNE PROCEDURY, KTÓRE MOGĄ BYĆ PRZYDATNE.

@@ -1,0 +1,149 @@
+ROZWIĄZANIE DO AUTOMATYCZNEGO GENEROWANIA KODU HTML RAPORTÓW. 
+
+-----------------------------------------------------------------------------
+GŁÓWNE ZASOBY:
+- TABELA: 		[dbo].[Report_HTMLS] 						#1
+- TABELA: 		[dbo].[Report_HTML_Params]					#2
+- PROCEDURA:	[dbo].[HRM_00_PrepareHtmls] 				#3
+- SEKWENCJA:	[dbo].[HRM_00_InvokeNo]						#4
+-----------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+[dbo].[Report_HTMLS] :
+
+WYMAGANE KOLUMNY:
+- [ID] 					- PRIMARY KEY
+- [HName]				- PRZYJAZNA NAZWA
+- [HTML]				- KOD HTML. OPCJONALNIE Z PARAMETRAMI OTOCZONYMI WYBRANYMI CIĄGAMI ZNAKÓW
+- [StartParamPattern] 	- POCZĄTKOWY CIĄG ZNAKÓW PRZY PARAMETRZE W KODZIE HTML
+- [EndParamPattern]     - KOŃCOWY CIĄG ZNAKÓW
+
+OPCJONALNE KOLUMNY:
+- [prefixHtmlID]		- ID KODU HTML, KTÓRY JEST POCZĄTKIEM RAPORTU. W PRZYPADKU GDY SAM [HTML] POWTARZA SIĘ WIELE RAZY W WYNIKOWYM KODZIE. MOŻE ZAWIERAĆ PARAMETRY, OTOCZONE TAK SAMO, JAK W [HTML].
+- [suffixHtmlID]		- ID KODU HTML, KOŃCZĄCEGO RAPORT. MOŻE ZAWIERAĆ PARAMETRY, OTOCZONE TAK SAMO, JAK W [HTML].
+- [databaseName]		- NAZWA BAZY DANYCH, GDZIE ZNAJDUJE SIĘ ŹRÓDŁO DANYCH Z WARTOŚCIAMI PARAMETRÓW.
+- [schemaName]			- NAZWA SCHEMATU W W/W BAZIE.
+- [datasourceName]		- NAZWA WIDOKU, TABELI LUB FUNKCJI TABELARYCZNEJ W W/W BAZIE.
+- [datasourceType]      - TYP ŻRÓDŁA (V - WIDOK, T - TABELA, F - FUNCKJA TABELARYCZNA).
+- [fnctArgs]			- OPCJONALNE ARGUMENTY FUNKCJI (PRZYPISANE "NA SZTYWNO").
+- [returnAsOneHtml]		- JEŚLI 'Y' TO WYNIKOWY HTML BĘDZIE MIAŁ POSTAĆ: PREFIX_HTML + HTML*(LICZBA REKORDÓW W ŹRÓDLE) + SUFFIX_HTML. JEŚLI 'N', TO: (PREFIX_HTML + HTML + SUFFIX_HTML)*(LICZBA REKORDÓW W ŹRÓDLE).
+- [orderByColumn]       - NAZWA KOLUMNY, PO KTÓREJ MAJĄ BYĆ POSORTOWANE REOKRDY ZE ŹRÓDŁA PRZY PODMIANIE PARAMETRÓW. DOMYŚLNIE PIERWSZA KOLUMNA ZE ŹRÓDŁA. 
+- [splitResultSetBy]	- OPCJONALNIE - NAZWA KOLUMNY, WZGLĘDEM KTÓREJ ŹRÓDŁO BĘDZIE PODZIELONE NA PODŹRÓDŁA. JEŚLI DODATKOWO [returnAsOneHtml] = 'Y', TO WYNIK PROCEDURY: (PREFIX_HTML + HTML*(LICZBA REKORDÓW W PODŹRÓDLE) + SUFFIX_HTML)*(LICZBA PODŹRÓDEŁ). GDY NULL - ŹRÓDŁO NIE JEST DZIELONE.
+- [mSubjectColName]     - OPCJONALNIE - NAZWA KOLUMNY Z TEMATEM DO WIADOMOŚCI EMAIL Z RAPORTEM. WARTOŚĆ MUSI BYĆ TAKA SAMA W OBRĘBIE WSZYSTKICH PODŹRÓDEŁ LUB CAŁEGO ŹRÓDŁA, GDY [returnAsOneHtml] = 'N'.
+- [mAddressColName]		- OPCJONALNIE - NAZWA KOLUMNY Z ADRESAMI (ROZDZIELANYMI ŚREDNIKIEM) DO WIADOMOŚCI EMAIL Z RAPORTEM. WARTOŚĆ MUSI BYĆ TAKA SAMA W OBRĘBIE WSZYSTKICH PODŹRÓDEŁ LUB CAŁEGO ŹRÓDŁA, GDY [returnAsOneHtml] = 'N'.
+- [outputMode]			- OPCJONALNIE - PRZEKIEROWANIE WYJŚCIA Z PROCEDURY. 'S' - SELECT, CZYLI WYPISANIE REZULTATÓW, 'M' - OD RAZU WYSŁANIE WSZYSTKICH HTML'I NA ODPOWIEDNIE ADRESY E-MAIL. DOMYŚLNIE - 'S'
+- [mailProfile]			- OPCJONALNIE - NAZWA PROFILU EMAIL UŻYWANEGO NA SERWERZE SQL.
+-----------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+[dbo].[Report_HTML_Params]
+
+- paramID 				- PRIMARY KEY 
+- reportID 				- FOREIGN KEY: [dbo].[Report_HTML_Params]	(ID)
+- paramName 			- NAZWA PARAMETRU Z WYBRANEGO HTML
+
+TABELA UZUPEŁNIA SIĘ AUTOMATYCZNIE PRZY DODAWANIU LUB EDYTOWANIU REKORDÓW DO [dbo].[Report_HTMLS]  (SQL TRIGGER). 
+-----------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+[dbo].[HRM_00_InvokeNo]
+
+KOLEJNA WARTOŚĆ POBIERANA PRZY KAŻDYM WYWOŁANIU PROCEDURY [HRM_00_PrepareHtmls]. UŻYWANA DO GENEROWANIA UNIKALNYCH NAZW DLA TYMCZASOWYCH TABEL GLOBALNYCH, PRZECHOWUJĄCYCH ZESTAWY WARTOŚCI PARAMETRÓW - 
+ABY DWIE INSTANCJE TEJ SAMEJ PROCEDURY NIE EDYTOWAŁY TEJ SAMEJ TABELI. UŻYCIE TABEL GLOBALNYCH JEST NIEZBĘDNE, GDYŻ SĄ ONE TWORZONE ZA POMOCĄ DYNAMICZNEGO SQL WYWOŁYWANEGO W POLECENIACH "EXEC". 
+GDYBY UŻYĆ TABEL TYMCZASOWYCH LOKALNYCH, BYŁYBY ONE NISZCZONE JUŻ PRZY ZAKOŃCZENIU WYWOŁANIA "EXEC" I NIEWIDOCZNE DLA DALSZEJ CZĘŚCI TEJ SAMEJ PROCEDURY. 
+SEKWENCJA ZLICZA OD 0 DO 1000 I ZAPĘTLA SIĘ. TYMCZASOWE TABELE SĄ NA BIEŻĄCO USUWANE. 
+-----------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+[dbo].[HRM_00_PrepareHtmls]
+PROCEDURA GENERUJE KOD HTML RAPORTU, PODSTAWIAJĄC ZA PARAMETRY ODPOWIEDNIE DANE Z PODANEGO ŹRÓDŁA.
+NAZWY KOLUMN ŹRÓDŁA DANYCH MUSZĄ MIEĆ TAKIE SAME NAZWY, JAK NAZWY PARAMETRÓW. WIELKOŚĆ LITER NIE MA ZNACZENIA.
+
+WYMAGANE PARAMETRY:
+
+- @htmlID				- ID KODU HTML Z TABELI [dbo].[Report_HTMLS], KTÓRY MA BYĆ UZUPEŁNIONY. 
+						  JEŚLI POZOSTAŁE PARAMETRY BĘDĄ NULL'AMI (LUB NIE ZOSTANĄ PODANE), TO ICH WARTOŚCI ZOSTANĄ ODCZYTANE Z KOLUMN TABELI [dbo].[Report_HTMLS].
+						  
+OPCJONALNE: 
+
+- @prefixHtmlID 
+- @suffixHtmlID
+- @databaseName
+- @schemaName 
+- @datasourceName
+- @datasourceType 		- TYP ŻRÓDŁA DANYCH (V - WIDOK, T - TABELA, F - FUNKCJA )
+- @mAddressColName 
+- @mSubjectColName 
+- @fnctArgs				- OPCJONALNY CIĄG ZNAKÓW REZPREZENTUJĄCY WARTOŚCI ARGUMENTÓW DLA FUNCKJI (NA "SZTYWNO") - JEŚLI TYPEM ŹRÓDŁA DANYCH JEST 'F'.
+						  ARGUMENTY PODANE JAKO JEDEN CIĄG ZNAKÓW. ARGUMENTY W CIĄGU ROZDZIELONE PRZECINKAMI. KAŻDY ARGUMENT TEKSTOWY OKOLONY POJEDYNCZYMI APOSTROFAMI.
+						  DOMYŚLNIE PUSTY CIĄG ZNAKÓW.
+- @returnAsOneHtml		- JAK DLA TABELI [dbo].[Report_HTMLS]. DOMYŚLNA WARTOŚĆ - 'Y'.
+- @orderByColumn 		- JAK DLA TABELI [dbo].[Report_HTMLS].
+- @splitResultSetBy     - JAK DLA TABELI [dbo].[Report_HTMLS].
+- @outputMode			- JAK DLA TABELI [dbo].[Report_HTMLS].
+- @mailProfile			- JAK DLA TABELI [dbo].[Report_HTMLS].
+-----------------------------------------------------------------------------
+
+
+-----------------------------------------------------------------------------
+PRZYKŁAD UŻYCIA: 
+
+
+TABELA [dbo].[Report_HTMLS] ZAWIERA REKORDY:
+
+
+ID    HName           HTML                                                                                    StartParamPattern EndParamPattern prefixHtmlID suffixHtmlID databaseName   schemaName   datasourceName   datasourceType  fnctArgs   returnAsOneHtml orderByColumn   splitResultSetBy   mSubjectColName  mAddressColName  outputMode  mailProfile  
+--------------------- --------------------------------------------------------------------------------------- ----------------- --------------- ------------ ------------ -------------- ------------ ---------------- --------------- ---------- --------------- ---------------------------------- ---------------- ---------------- ----------  ----------------
+3     testSrvPrefix   <p>Dokument nr: ++@TestDocnum@++ do dostarczenia do ++@TestDstCompany@++</p><br><ul>    ++@               @++             NULL         NULL         NULL           NULL         NULL             NULL            NULL       NULL            NULL            NULL               NULL             NULL			   NULL        NULL
+4     testSrvSuffix   </ul><br><p>Pozdrawiam,Autoinfo<br></p>                                                 ++@               @++             NULL         NULL         NULL           NULL         NULL             NULL            NULL       NULL            NULL            NULL               NULL             NULL             NULL        NULL    
+5     testSrvHtml     <li>LP: ++@TestLp@++, Item: ++@TestItemCode@++</li>                                     ++@               @++             3            4            Autoinfo       dbo          ___TEST          T               NULL       Y               TestLp          TestDocnum         Mail             Subject          S           plv28SQLnotifier
+
+
+
+ŹRÓDŁEM DANYCH JEST TABELA: [Autoinfo].[dbo].[___TEST]
+
+TestDocnum      TestLp      TestItemCode TestDstCompany Mail               Subject
+--------------- ----------- ------------ -------------- ------------------ --------------------
+1000            1           N001         company0       mail0              subject0
+1000            2           N005         company0       mail0              subject0
+1000            3           N006         company0       mail0              subject0
+1001            1           N011         company1       mail1              subject1
+1001            2           N019         company1       mail1              subject1
+1002            1           N028         company2       mail2              subject2
+1003            1           N039         company3       mail3              subject3
+1003            2           N031         company3       mail3              subject3
+
+
+WYWOŁANIE PROCEDURY W POSTACI:
+
+DECLARE @htmlID int = 5
+EXECUTE [dbo].[HRM_00_PrepareHtmls] @htmlID 
+
+DA WYNIK:
+
+html                                                                                                                                                                                  mAddress      mSubject
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ------------- -----------
+<p>Dokument nr: 1000 do dostarczenia do company0</p><br><ul><li>LP: 1, Item: N001</li><li>LP: 2, Item: N005</li><li>LP: 3, Item: N006</li></ul><br><p>Pozdrawiam,Autoinfo<br></p>     subject0      mail0
+<p>Dokument nr: 1001 do dostarczenia do company1</p><br><ul><li>LP: 1, Item: N011</li><li>LP: 2, Item: N019</li></ul><br><p>Pozdrawiam,Autoinfo<br></p>                               subject1      mail1
+<p>Dokument nr: 1002 do dostarczenia do company2</p><br><ul><li>LP: 1, Item: N028</li></ul><br><p>Pozdrawiam,Autoinfo<br></p>                                                         subject2      mail2
+<p>Dokument nr: 1003 do dostarczenia do company3</p><br><ul><li>LP: 1, Item: N039</li><li>LP: 2, Item: N031</li></ul><br><p>Pozdrawiam,Autoinfo<br></p>                               subject3      mail3
+
+
+WYWOŁANIE PROCEDURY W POSTACI:
+
+DECLARE @htmlID int = 5
+EXECUTE [dbo].[HRM_00_PrepareHtmls] @htmlID , @returnAsOneHtml = 'N'
+
+DA NATOMIAST WYNIK: 
+
+html                                                                                                                            mAddress    mSubject
+------------------------------------------------------------------------------------------------------------------------------- ----------- --------------
+<p>Dokument nr: 1000 do dostarczenia do company0</p><br><ul><li>LP: 1, Item: N001</li></ul><br><p>Pozdrawiam,Autoinfo<br></p>   subject0     mail0
+<p>Dokument nr: 1000 do dostarczenia do company0</p><br><ul><li>LP: 2, Item: N005</li></ul><br><p>Pozdrawiam,Autoinfo<br></p>   subject0     mail0
+<p>Dokument nr: 1000 do dostarczenia do company0</p><br><ul><li>LP: 3, Item: N006</li></ul><br><p>Pozdrawiam,Autoinfo<br></p>   subject0     mail0
+<p>Dokument nr: 1001 do dostarczenia do company1</p><br><ul><li>LP: 1, Item: N011</li></ul><br><p>Pozdrawiam,Autoinfo<br></p>   subject1     mail1
+<p>Dokument nr: 1001 do dostarczenia do company1</p><br><ul><li>LP: 2, Item: N019</li></ul><br><p>Pozdrawiam,Autoinfo<br></p>   subject1     mail1
+<p>Dokument nr: 1002 do dostarczenia do company2</p><br><ul><li>LP: 1, Item: N028</li></ul><br><p>Pozdrawiam,Autoinfo<br></p>   subject2     mail2
+<p>Dokument nr: 1003 do dostarczenia do company3</p><br><ul><li>LP: 1, Item: N039</li></ul><br><p>Pozdrawiam,Autoinfo<br></p>   subject3     mail3
+<p>Dokument nr: 1003 do dostarczenia do company3</p><br><ul><li>LP: 2, Item: N031</li></ul><br><p>Pozdrawiam,Autoinfo<br></p>   subject3     mail3
+
