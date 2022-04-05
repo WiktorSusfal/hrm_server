@@ -5,5 +5,5 @@
 5. "Trg_Update_Param.sql" 	- TRIGGER [dbo].[HRM_02_UpdateParamsTable].
 6. "S_Invoke_No.sql"		- SEKWENCJA [dbo].[HRM_00_InvokeNo].
 7. "SF_Prereq.sql"			- POTRZEBNE FUNKCJE SKALARNE - PREREKWIZYTY DLA GŁÓWNEJ PROCEDURY.
-8. "P_MainProc.sql"			- GŁÓWNA PROCEDURA [dbo].[HRM_00_PrepareHtmls] + PREREKWIZYTY
+8. "P_MainProc.sql"			- GŁÓWNA PROCEDURA [dbo].[HRM_00_PrepareHtmls]
 9. "P_Other.sql"			- INNE PROCEDURY, KTÓRE MOGĄ BYĆ PRZYDATNE.

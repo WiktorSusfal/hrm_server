@@ -1,42 +1,3 @@
-/****** Object:  StoredProcedure [dbo].[HRM_00_WriteFromExecToVar]    Script Date: 05.01.2022 11:22:03 ******/
-SET ANSI_NULLS ON
-GO
-
-SET QUOTED_IDENTIFIER ON
-GO
-
-
--- PROCEDURA ZAPISUJĄCA WYNIK ZAPYTANIA '@QUERY' DO ZMIENNEJ
--- JEŚLI ZAPYTANIE ZWRACA WIĘCEJ NIZ 1 REKORD Z JEDNĄ KOLUMNĄ - ZWRACA NULL (POPRZEZ PARAMETR WYJŚCIOWY).
-
-
-CREATE OR ALTER PROCEDURE [dbo].[HRM_00_WriteFromExecToVar]
-
-	@query NVARCHAR(MAX)
-	,@result NVARCHAR(MAX) OUTPUT
-
-AS
-BEGIN
-
-	DECLARE @tmp as table (val nvarchar(MAX));
-
-	BEGIN TRY
-		
-		INSERT INTO @tmp EXEC(@query);
-
-		IF @@ROWCOUNT != 1
-			RETURN;
-
-	END TRY 
-	BEGIN CATCH
-		RETURN;
-	END CATCH;
-	
-	SET @result = (SELECT val FROM @tmp);
-
-END
-GO
-
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -100,6 +61,7 @@ BEGIN
 			,@iter INT = 1
 			,@paramName1 VARCHAR(400)
 			,@tmpParamValue NVARCHAR(MAX)
+			,@tmpSPOutParams NVARCHAR(MAX)
 			,@paramPrefix NVARCHAR(10)
 			,@paramSuffix NVARCHAR(10)
 			,@fullParamName NVARCHAR(500)
@@ -274,9 +236,6 @@ BEGIN
 	BEGIN
 		
 		SET @iter = 1;
-
-		IF OBJECT_ID(('tempdb..' +  @globalTempTableName)) IS NOT NULL 
-			EXEC(N'DROP TABLE ' + @globalTempTableName)
 	
 		-- PRZEPISANIE DO TYMCZASOWEJ TABELI  @globalTempTableName WSZYSTKICH REKORDÓW ZE ŹRÓDŁA (PODŹRÓDŁA), DODAJĄC NUMER WIERSZA. 
 		-- NUMER WIERSZA JEST NIEZBĘDNY BY MÓC ITEROWAĆ PO ZBIORZE REKORDÓW Z DYNAMICZNYMI NAZWAMI KOLUMN O ZMIENNEJ LICZBIE. 
@@ -325,9 +284,10 @@ BEGIN
 				IF LOWER(@paramName1) IN (SELECT LOWER(colName) FROM @dataColumns)
 				BEGIN
 
-					SET @tempQuery = 'SELECT CAST(' + @paramName1 + N' AS NVARCHAR) FROM ' +  @globalTempTableName + ' WHERE __LP = ' + CAST(@iter AS NVARCHAR)
+					SET @tempQuery = 'SELECT @resultParam = CAST(' + @paramName1 + N' AS NVARCHAR) FROM ' +  @globalTempTableName + ' WHERE __LP = ' + CAST(@iter AS NVARCHAR)
+					SET @tmpSPOutParams = '@resultParam NVARCHAR(MAX) OUTPUT'
 
-					EXEC dbo.HRM_00_WriteFromExecToVar @query = @tempQuery, @result = @tmpParamValue OUTPUT;
+					EXEC sp_executeSQL @tempQuery, @tmpSPOutParams, @resultParam =  @tmpParamValue OUTPUT
 					IF @tmpParamValue IS NOT NULL
 					BEGIN
 						SET @fullParamName = @paramPrefix + dbo.HRM_00_UnQuoteIfQuoted(@paramName1) + @paramSuffix;
@@ -344,9 +304,10 @@ BEGIN
 			--JEŚLI PODANA KOLUMNA Z ADRESEM E-MAIL ORAZ TEMATEM MAILA ISTNIEJE W ŹRÓDLE DANYCH, PRZYPISZ ADRES I TEMAT DO ZMIENNYCH.
 			IF LOWER(@mAddressColName) IN (SELECT LOWER(colName) FROM @dataColumns) AND @mAddressColName IS NOT NULL
 			BEGIN
-					SET @tempQuery = 'SELECT CAST(' + @mAddressColName + N' AS NVARCHAR(MAX)) FROM ' +  @globalTempTableName + ' WHERE __LP = ' + CAST(@iter AS NVARCHAR)
-
-					EXEC dbo.HRM_00_WriteFromExecToVar @query = @tempQuery , @result = @mailAddress OUTPUT;
+					SET @tempQuery = 'SELECT @resultParam = CAST(' + @mAddressColName + N' AS NVARCHAR(MAX)) FROM ' +  @globalTempTableName + ' WHERE __LP = ' + CAST(@iter AS NVARCHAR)
+					SET @tmpSPOutParams = '@resultParam NVARCHAR(MAX) OUTPUT'
+					
+					EXEC sp_executeSQL @tempQuery, @tmpSPOutParams, @resultParam = @mailAddress OUTPUT
 					IF @mailAddress IS NULL
 						SET @mailAddress = N'Cannot retrieve mail address.'	
 			END
@@ -355,9 +316,10 @@ BEGIN
 
 			IF LOWER(@mSubjectColName) IN (SELECT LOWER(colName) FROM @dataColumns) AND @mSubjectColName IS NOT NULL
 			BEGIN
-					SET @tempQuery = 'SELECT CAST(' + @mSubjectColName + N' AS NVARCHAR(MAX)) FROM ' + @globalTempTableName + ' WHERE __LP = ' + CAST(@iter AS NVARCHAR)
+					SET @tempQuery = 'SELECT @resultParam = CAST(' + @mSubjectColName + N' AS NVARCHAR(MAX)) FROM ' + @globalTempTableName + ' WHERE __LP = ' + CAST(@iter AS NVARCHAR)
+					SET @tmpSPOutParams = '@resultParam NVARCHAR(MAX) OUTPUT'
 
-					EXEC dbo.HRM_00_WriteFromExecToVar @query = @tempQuery , @result = @mailSubject OUTPUT;
+					EXEC sp_executeSQL @tempQuery, @tmpSPOutParams, @resultParam = @mailSubject OUTPUT
 					IF @mailSubject IS NULL
 						SET @mailSubject = N'Cannot retrieve mail subject.'	
 			END
@@ -414,4 +376,6 @@ BEGIN
 
 	END
 
+
 END
+
