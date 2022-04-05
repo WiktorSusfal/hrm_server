@@ -37,7 +37,12 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE [dbo].[HRM_00_PrepareHtmls] 
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE PROCEDURE [dbo].[HRM_00_PrepareHtmls] 
 
 	--ID DLA KODU HTML Z TABELI dbo.Report_HTMLS.
 	@htmlID INT
@@ -253,11 +258,9 @@ BEGIN
 		-- JEŚLI PODANA KOLUMNA, PO KTÓREJ NALEŻY POGRUPOWAĆ, NIE ZAWIERA SIĘ W ZBIORZE KOLUMN ŻRÓDŁA DANYCH, PRZERWIJ.
 		IF @splitResultSetBy NOT IN (SELECT colName FROM @dataColumns)
 			RETURN;
-
-		SET @tmpColumnSet = N'ROW_NUMBER() OVER( ORDER BY C1 ASC) AS __LP, C1'
-		SET @tmpDataSourceName = N'(SELECT DISTINCT CAST(' + @splitResultSetBy + N' AS NVARCHAR) AS C1 FROM  ' + @fullDataSrcName + N' ) T';
 		 
-		SET @tempQuery = dbo.HRM_00_BuildSelectStatement(@tmpColumnSet, @tmpDataSourceName, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+		SET @tempQuery = 'SELECT ROW_NUMBER() OVER( ORDER BY C1 ASC) AS __LP, C1 FROM 
+								(SELECT DISTINCT CAST(' + @splitResultSetBy + N' AS NVARCHAR) AS C1 FROM  ' + @fullDataSrcName + N' ) T'
 
 		INSERT INTO @distGroupValues EXEC(@tempQuery);
 
@@ -321,10 +324,8 @@ BEGIN
 			BEGIN
 				IF LOWER(@paramName1) IN (SELECT LOWER(colName) FROM @dataColumns)
 				BEGIN
-					SET @tmpColumnSet = N'CAST(' + @paramName1 + N' AS NVARCHAR)';
-					SET @tmpWhereClause = N'__LP = ' + CAST(@iter AS NVARCHAR);
 
-					SET @tempQuery =  dbo.HRM_00_BuildSelectStatement(@tmpColumnSet, @globalTempTableName, NULL, NULL, NULL, NULL, NULL, @tmpWhereClause, NULL, NULL, NULL);
+					SET @tempQuery = 'SELECT CAST(' + @paramName1 + N' AS NVARCHAR) FROM ' +  @globalTempTableName + ' WHERE __LP = ' + CAST(@iter AS NVARCHAR)
 
 					EXEC dbo.HRM_00_WriteFromExecToVar @query = @tempQuery, @result = @tmpParamValue OUTPUT;
 					IF @tmpParamValue IS NOT NULL
@@ -343,10 +344,8 @@ BEGIN
 			--JEŚLI PODANA KOLUMNA Z ADRESEM E-MAIL ORAZ TEMATEM MAILA ISTNIEJE W ŹRÓDLE DANYCH, PRZYPISZ ADRES I TEMAT DO ZMIENNYCH.
 			IF LOWER(@mAddressColName) IN (SELECT LOWER(colName) FROM @dataColumns) AND @mAddressColName IS NOT NULL
 			BEGIN
-					SET @tmpColumnSet = N'CAST(' + @mAddressColName + N' AS NVARCHAR(MAX))';
-					SET @tmpWhereClause = N'__LP = ' + CAST(@iter AS NVARCHAR);
-					SET @tempQuery = dbo.HRM_00_BuildSelectStatement(@tmpColumnSet, @globalTempTableName, NULL, NULL, NULL, NULL, NULL, @tmpWhereClause, NULL, NULL, NULL);
-	
+					SET @tempQuery = 'SELECT CAST(' + @mAddressColName + N' AS NVARCHAR(MAX)) FROM ' +  @globalTempTableName + ' WHERE __LP = ' + CAST(@iter AS NVARCHAR)
+
 					EXEC dbo.HRM_00_WriteFromExecToVar @query = @tempQuery , @result = @mailAddress OUTPUT;
 					IF @mailAddress IS NULL
 						SET @mailAddress = N'Cannot retrieve mail address.'	
@@ -356,9 +355,7 @@ BEGIN
 
 			IF LOWER(@mSubjectColName) IN (SELECT LOWER(colName) FROM @dataColumns) AND @mSubjectColName IS NOT NULL
 			BEGIN
-					SET @tmpColumnSet = N'CAST(' + @mSubjectColName + N' AS NVARCHAR(MAX))';
-					SET @tmpWhereClause = N'__LP = ' + CAST(@iter AS NVARCHAR);
-					SET @tempQuery = dbo.HRM_00_BuildSelectStatement(@tmpColumnSet, @globalTempTableName, NULL, NULL, NULL, NULL, NULL, @tmpWhereClause, NULL, NULL, NULL);
+					SET @tempQuery = 'SELECT CAST(' + @mSubjectColName + N' AS NVARCHAR(MAX)) FROM ' + @globalTempTableName + ' WHERE __LP = ' + CAST(@iter AS NVARCHAR)
 
 					EXEC dbo.HRM_00_WriteFromExecToVar @query = @tempQuery , @result = @mailSubject OUTPUT;
 					IF @mailSubject IS NULL
@@ -417,6 +414,4 @@ BEGIN
 
 	END
 
-
 END
-GO
