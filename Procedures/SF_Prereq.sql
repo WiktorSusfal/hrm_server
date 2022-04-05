@@ -11,9 +11,76 @@ GO
 -- Description:	<Description, ,>
 -- =============================================
 
+CREATE FUNCTION [dbo].[HRM_00_QuoteIfNotQuoted]
+(
+	-- Add the parameters for the function here
+	@string NVARCHAR(MAX)
+)
+RETURNS NVARCHAR(MAX)
+AS
+BEGIN
+	-- Declare the return variable here
+	DECLARE @len INT = 0
+			,@first VARCHAR = ''
+			,@last VARCHAR = ''
+			,@result NVARCHAR(MAX);
+	
+	SET @len = ISNULL(LEN(@string), 0);
+
+	IF @len = 0
+		RETURN NULL;
+	
+	SELECT	@first = SUBSTRING(@string, 1, 1)
+			,@last = SUBSTRING(@string, @len, 1)
+
+	IF @first = '[' AND @last = ']'
+		SET @result =  @string;
+	ELSE
+		set @result = N'[' + @string + N']'
+
+	RETURN @result;
+
+END
+GO
+
+
+CREATE FUNCTION[dbo].[HRM_00_UnQuoteIfQuoted]
+(
+	-- Add the parameters for the function here
+	@string NVARCHAR(MAX)
+)
+RETURNS NVARCHAR(MAX)
+AS
+BEGIN
+	
+	DECLARE @len INT = 0
+			,@first VARCHAR = ''
+			,@last VARCHAR = ''
+			,@result NVARCHAR(MAX);
+	
+	SET @len = ISNULL(LEN(@string), 0);
+
+	IF @len = 0
+		RETURN NULL;
+	
+	SELECT	@first = SUBSTRING(@string, 1, 1)
+			,@last = SUBSTRING(@string, @len, 1)
+
+	IF @first = '[' AND @last = ']'
+		SET @result =  SUBSTRING(@string, 2, @len-2)
+	ELSE
+		set @result = @string
+
+	RETURN @result;
+
+END
+GO
+
+
+
 --ZAPYTANIE DO ODCZYTANIA WSZYSTKICH ORYGINALNYCH NAZW KOLUMN ZE ŹRÓDŁA DANYCH
 --DATASOURCE TYPE: V - VIEW, F - TABLE FUNCTION, T - TABLE
-CREATE OR ALTER FUNCTION [dbo].[HRM_00_BuildQueryForDSColumnNames]
+CREATE FUNCTION [dbo].[HRM_00_BuildQueryForDSColumnNames]
 (
 	-- Add the parameters for the function here
 	@datasourceType VARCHAR(1)
@@ -45,7 +112,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER FUNCTION [dbo].[HRM_00_BuildSelectStatement]
+CREATE FUNCTION [dbo].[HRM_00_BuildSelectStatement]
 (
 	-- Add the parameters for the function here
 	@columnList NVARCHAR(MAX)
@@ -108,67 +175,3 @@ END
 GO
 
 
-CREATE OR ALTER FUNCTION [dbo].[HRM_00_QuoteIfNotQuoted]
-(
-	-- Add the parameters for the function here
-	@string NVARCHAR(MAX)
-)
-RETURNS NVARCHAR(MAX)
-AS
-BEGIN
-	-- Declare the return variable here
-	DECLARE @len INT = 0
-			,@first VARCHAR = ''
-			,@last VARCHAR = ''
-			,@result NVARCHAR(MAX);
-	
-	SET @len = ISNULL(LEN(@string), 0);
-
-	IF @len = 0
-		RETURN NULL;
-	
-	SELECT	@first = SUBSTRING(@string, 1, 1)
-			,@last = SUBSTRING(@string, @len, 1)
-
-	IF @first = '[' AND @last = ']'
-		SET @result =  @string;
-	ELSE
-		set @result = N'[' + @string + N']'
-
-	RETURN @result;
-
-END
-GO
-
-
-CREATE OR ALTER FUNCTION [dbo].[HRM_00_UnQuoteIfQuoted]
-(
-	-- Add the parameters for the function here
-	@string NVARCHAR(MAX)
-)
-RETURNS NVARCHAR(MAX)
-AS
-BEGIN
-	
-	DECLARE @len INT = 0
-			,@first VARCHAR = ''
-			,@last VARCHAR = ''
-			,@result NVARCHAR(MAX);
-	
-	SET @len = ISNULL(LEN(@string), 0);
-
-	IF @len = 0
-		RETURN NULL;
-	
-	SELECT	@first = SUBSTRING(@string, 1, 1)
-			,@last = SUBSTRING(@string, @len, 1)
-
-	IF @first = '[' AND @last = ']'
-		SET @result =  SUBSTRING(@string, 2, @len-2)
-	ELSE
-		set @result = @string
-
-	RETURN @result;
-
-END
-GO
