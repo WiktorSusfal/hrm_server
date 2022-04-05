@@ -1,9 +1,10 @@
+/****** Object:  StoredProcedure [dbo].[HRM_00_PrepareHtmls]    Script Date: 05.04.2022 18:29:50 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-CREATE PROCEDURE [dbo].[HRM_00_PrepareHtmls] 
+ALTER PROCEDURE [dbo].[HRM_00_PrepareHtmls] 
 
 	--ID DLA KODU HTML Z TABELI dbo.Report_HTMLS.
 	@htmlID INT
@@ -45,6 +46,10 @@ CREATE PROCEDURE [dbo].[HRM_00_PrepareHtmls]
 
 	--NAZWA PROFILU E-MAIL NA SERWERZE SQL
 	,@mailProfile VARCHAR(100) = NULL
+
+	-- JEŚLI 'Y' - KODY HTML Z WYNIKOWEJ TABELI ZOSTANĄ ZE SOBĄ POŁĄCZONE. ŁĄCZENIE HTML'I ODBYWA SIĘ NA PODSTAWIE ADRESÓW E-MAIL I TEMATÓW.
+	-- KAŻDY KOD HTML Z TAKIMI SAMYMI WARTOŚCIAMI TYCH KOLUMN ZOSTANIE POŁĄCZONY W KOLEJNOŚCI ALFABETYCZNEJ.  
+	,@mergeOutHTMLs NVARCHAR(1) = NULL
 
 AS
 BEGIN
@@ -119,11 +124,14 @@ BEGIN
 		SET @outputMode = (SELECT outputMode FROM dbo.Report_HTMLS WHERE ID = @htmlID);
 	IF ISNULL(@mailProfile, '') = ''
 		SET @mailProfile = (SELECT mailProfile FROM dbo.Report_HTMLS WHERE ID = @htmlID);
+	IF ISNULL(@mergeOutHTMLs, '') = ''
+		SET @mergeOutHTMLs = (SELECT @mergeOutHTMLs FROM dbo.Report_HTMLS WHERE ID = @htmlID);
 
 	-- PRZYPISANIE WARTOŚCI DOMYŚLNYCH - W RAZIE GDYBY ZARÓWNO DO PROCEDURY, JAK I DO TABELI  dbo.Report_HTMLS PRZEKAZANO NULL'E
 	SET @fnctArgs = ISNULL(@fnctArgs, N'');
 	SET @returnAsOneHtml = ISNULL(@returnAsOneHtml, N'Y');
 	SET @outputMode = ISNULL(@outputMode, N'S');
+	SET @mergeOutHTMLs = ISNULL(@mergeOutHTMLs, N'N')
 
 	-- OTOCZENIE NAZW KOLUMN NAWIASAMI '[]'
 	SET @mAddressColName = dbo.HRM_00_QuoteIfNotQuoted(@mAddressColName);
@@ -236,6 +244,9 @@ BEGIN
 	BEGIN
 		
 		SET @iter = 1;
+
+		IF OBJECT_ID(('tempdb..' +  @globalTempTableName)) IS NOT NULL 
+			EXEC(N'DROP TABLE ' + @globalTempTableName)
 	
 		-- PRZEPISANIE DO TYMCZASOWEJ TABELI  @globalTempTableName WSZYSTKICH REKORDÓW ZE ŹRÓDŁA (PODŹRÓDŁA), DODAJĄC NUMER WIERSZA. 
 		-- NUMER WIERSZA JEST NIEZBĘDNY BY MÓC ITEROWAĆ PO ZBIORZE REKORDÓW Z DYNAMICZNYMI NAZWAMI KOLUMN O ZMIENNEJ LICZBIE. 
@@ -342,7 +353,36 @@ BEGIN
 	END
 
 	-- SKASOWANIE TYMCZASOWEJ TABELI GLOBALNEJ
-	EXEC(N'DROP TABLE ' + @globalTempTableName);
+	IF OBJECT_ID(('tempdb..' +  @globalTempTableName)) IS NOT NULL 
+		EXEC(N'DROP TABLE ' + @globalTempTableName)
+
+	-- OPCJONALNE ŁĄCZENIE WYNIKOWYCH KODÓW HTML - PRZYPORZĄDKOWANIE NA PODSTAWIE ADRESÓW EMAIL I TEMATÓW
+	-- KAŻDY KOD HTML Z TAKIMI SAMYMI WARTOŚCIAMI TYCH KOLUMN ZOSTANIE POŁĄCZONY W KOLEJNOŚCI ALFABETYCZNEJ.  
+	IF @mergeOutHTMLs = 'Y'
+	BEGIN
+		DECLARE @dmAddress NVARCHAR(MAX), @dmSubject NVARCHAR(MAX), @mergedHTML NVARCHAR(MAX) = N''
+
+		DECLARE mCR CURSOR FOR
+		SELECT DISTINCT mAddress, mSubject FROM @resultSet
+
+		OPEN mCR 
+		FETCH NEXT FROM mCR INTO @dmAddress, @dmSubject
+
+		WHILE @@FETCH_STATUS = 0
+		BEGIN
+			
+			SELECT @mergedHTML += html FROM @resultSet WHERE mAddress = @dmAddress AND mSubject = @dmSubject ORDER BY html
+			DELETE FROM @resultSet WHERE mAddress = @dmAddress AND mSubject = @dmSubject
+			INSERT INTO @resultSet (html, mAddress, mSubject) VALUES (@mergedHTML, @dmAddress, @dmSubject)
+			
+			SET @mergedHTML = N''
+			FETCH NEXT FROM mCR INTO @dmAddress, @dmSubject
+		END
+
+		CLOSE mCR
+		DEALLOCATE mCR
+
+	END
 
 	-- ZWRÓCENIE WYNIKU LUB WYSŁANIE MAILI
 	IF @outputMode = N'S'
@@ -378,4 +418,3 @@ BEGIN
 
 
 END
-
