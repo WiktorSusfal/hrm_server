@@ -26,6 +26,7 @@ CREATE TABLE [dbo].[Report_HTMLS](
 	[mAddressColName] [nvarchar](max) NULL,
 	[outputMode] [nvarchar](1) NULL,
 	[mailProfile] [varchar](100) NULL,
+	[mergeOutHTMLs] [nvarchar](1) NULL,
  CONSTRAINT [PK_ID] PRIMARY KEY CLUSTERED 
 (
 	[ID] ASC

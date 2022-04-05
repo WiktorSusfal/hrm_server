@@ -1,6 +1,3 @@
-USE [Autoinfo]
-GO
-
 /****** Object:  Trigger [dbo].[HRM_02_UpdateParamsTable]    Script Date: 2022-02-04 11:59:45 ******/
 SET ANSI_NULLS ON
 GO

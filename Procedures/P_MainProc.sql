@@ -4,7 +4,7 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-ALTER PROCEDURE [dbo].[HRM_00_PrepareHtmls] 
+CREATE PROCEDURE [dbo].[HRM_00_PrepareHtmls] 
 
 	--ID DLA KODU HTML Z TABELI dbo.Report_HTMLS.
 	@htmlID INT

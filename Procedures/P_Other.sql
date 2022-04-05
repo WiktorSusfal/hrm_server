@@ -10,7 +10,7 @@ GO
 -- Create date: <Create Date,,>
 -- Description:	<Description,,>
 -- =============================================
-CREATE OR ALTER PROCEDURE [dbo].[HRM_01_DeleteHtml]
+CREATE PROCEDURE [dbo].[HRM_01_DeleteHtml]
 	-- Add the parameters for the stored procedure here
 	@htmlID INT
 AS
@@ -26,7 +26,7 @@ END
 GO
 
 
-CREATE OR ALTER PROCEDURE [dbo].[HRM_03_ReturnParamsList] 
+CREATE PROCEDURE [dbo].[HRM_03_ReturnParamsList] 
 	-- Add the parameters for the stored procedure here
 	@reportId INT
 AS
@@ -52,7 +52,7 @@ END
 GO
 
 
-CREATE OR ALTER PROCEDURE [dbo].[HRM_04_ReturnHTemplateInfo]
+CREATE PROCEDURE [dbo].[HRM_04_ReturnHTemplateInfo]
 	-- Add the parameters for the stored procedure here
 	@id INT
 AS
