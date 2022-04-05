@@ -125,7 +125,7 @@ BEGIN
 	IF ISNULL(@mailProfile, '') = ''
 		SET @mailProfile = (SELECT mailProfile FROM dbo.Report_HTMLS WHERE ID = @htmlID);
 	IF ISNULL(@mergeOutHTMLs, '') = ''
-		SET @mergeOutHTMLs = (SELECT @mergeOutHTMLs FROM dbo.Report_HTMLS WHERE ID = @htmlID);
+		SET @mergeOutHTMLs = (SELECT mergeOutHTMLs FROM dbo.Report_HTMLS WHERE ID = @htmlID);
 
 	-- PRZYPISANIE WARTOŚCI DOMYŚLNYCH - W RAZIE GDYBY ZARÓWNO DO PROCEDURY, JAK I DO TABELI  dbo.Report_HTMLS PRZEKAZANO NULL'E
 	SET @fnctArgs = ISNULL(@fnctArgs, N'');
