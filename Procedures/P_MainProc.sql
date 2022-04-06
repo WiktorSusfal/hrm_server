@@ -295,7 +295,7 @@ BEGIN
 				IF LOWER(@paramName1) IN (SELECT LOWER(colName) FROM @dataColumns)
 				BEGIN
 
-					SET @tempQuery = 'SELECT @resultParam = CAST(' + @paramName1 + N' AS NVARCHAR) FROM ' +  @globalTempTableName + ' WHERE __LP = ' + CAST(@iter AS NVARCHAR)
+					SET @tempQuery = 'SELECT @resultParam = CAST(' + @paramName1 + N' AS NVARCHAR(MAX)) FROM ' +  @globalTempTableName + ' WHERE __LP = ' + CAST(@iter AS NVARCHAR)
 					SET @tmpSPOutParams = '@resultParam NVARCHAR(MAX) OUTPUT'
 
 					EXEC sp_executeSQL @tempQuery, @tmpSPOutParams, @resultParam =  @tmpParamValue OUTPUT
