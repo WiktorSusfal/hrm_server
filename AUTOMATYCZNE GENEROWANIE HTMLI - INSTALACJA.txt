@@ -1,4 +1,4 @@
-1. WYBÓR WSPÓLNEJ TABELI DANYCH NA SERWERZE SQL I URUCHOMIENIE PROCEDUR Z PLIKÓW, Z FOLDERU "Procedures".
+1. WYBÓR WSPÓLNEJ BAZY DANYCH NA SERWERZE SQL I URUCHOMIENIE PROCEDUR Z PLIKÓW, Z FOLDERU "Procedures".
 2. "T_Rep_H.sql" 			- TABELA [dbo].[Report_HTMLS].
 3. "T_Rep_Param.sql" 		- TABELA [dbo].[Report_HTML_Params].
 4. "P_Find_Params.sql" 		- PROCEDURA [dbo].[HRM_02_FindParameters]
