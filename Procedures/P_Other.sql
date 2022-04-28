@@ -86,6 +86,8 @@ BEGIN
 			,[mSubjectColName] 
 			,[mAddressColName] 
 			,[outputMode] 
+			,[mailProfile]
+			,[mergeOutHTMLs]
 
 	  FROM 
 	  
